@@ -19,8 +19,9 @@ class ModelService {
 
   constructor() {
     this.compilerHostService!.addFiles(...extractModelPathsFromWorkspace())
-    this.compilerHostService!.subscribeFileChange(({ uri }) => {
-      if (uri.path.includes('/models/')) {
+    this.compilerHostService!.subscribeFileChange(({ path }) => {
+      console.log(path)
+      if (path.includes('/models/')) {
         this.extractModelInfos()
       }
     })

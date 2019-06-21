@@ -23,11 +23,7 @@ class LanguageService {
 
     const program = this.compilerHostService.getProgram()
     const file = ts.createSourceFile('', document.getText(), ts.ScriptTarget.Latest, true)
-		// const file = program.getSourceFile(document.uri.path)
-    if (!file) { 
-      console.log('file not exists')
-      return [] 
-    }
+
     // find last character position as ts format
     const tsPosition = file.getPositionOfLineAndCharacter(position.line, Math.max(0, position.character - 1))
     let path = generateNodePath(file, tsPosition)

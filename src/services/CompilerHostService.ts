@@ -2,9 +2,10 @@ import Registry from "../utils/Registry"
 import * as ts from 'typescript'
 import * as vscode from 'vscode'
 import Workspace from "../utils/Workspace";
+import * as fs from 'fs'
 
 interface FileChangeHandler {
-  (file: { uri: vscode.Uri }): void
+  (file: { path: string }): void
 }
 
 /**
@@ -26,7 +27,7 @@ class CompilerHostService {
     // using `createSemanticDiagnosticsBuilderProgram` may be more desirable.
     const createProgram = ts.createSemanticDiagnosticsBuilderProgram
     const host = ts.createWatchCompilerHost(
-      ['@current'],
+      [],
       {
         noEmit: true // we do not want to emit output
       },
@@ -47,21 +48,21 @@ class CompilerHostService {
     this.watchProgram = ts.createWatchProgram(host)
 
     // create a watcher to update host
-    const watcher = vscode.workspace.createFileSystemWatcher(Workspace.src, false, false, false)
-
-    watcher.onDidCreate((e: vscode.Uri) => {
-      this.addFiles(e.path)
-      return watcher
+    fs.watch(Workspace.src, { recursive: true }, (event, name) => {
+      console.log(event, name)
+      const filePath = `${Workspace.src}/${name}`
+      if (event === 'change') {
+        this.subscribers.forEach(f => f({ path: filePath }))
+      } else if (event === 'rename') {
+        if (fs.existsSync(filePath)) {
+          this.addFiles(filePath)
+        } else {
+          this.removeFiles(filePath)
+        }
+      }
     })
-    watcher.onDidChange((e: vscode.Uri) => {
-      this.subscribers.forEach(f => f({ uri: e }))
-      return watcher
-    })
-    watcher.onDidDelete((e: vscode.Uri) => {
-      this.removeFiles(e.path)
-      return watcher
-    })
-
+    
+    
     // listen to the event when user openning a text editor
     vscode.window.onDidChangeActiveTextEditor((e) => {
       if (!e) { return }
