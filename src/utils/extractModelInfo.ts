@@ -27,7 +27,7 @@ function extractModelInfo(type: ts.Type, context: ExtractContext) {
 function extractNamespace(symbol: ts.Symbol) {
   const [ declaration ] = symbol.declarations
   const [ namespaceIdentifier, colon, namespaceValueToken ] = declaration.getChildren()
-  return namespaceValueToken.getText()
+  return namespaceValueToken.getText().slice(1,-1)
 }
 
 function extractReducers(symbol: ts.Symbol, option: ExtractContext) {

@@ -66,10 +66,10 @@ class LanguageService {
           if (key === 'type') {
             const models = this.modelService.getModels();
             const types = models
-              .map(v => [...v.reducers ,...v.effects].map(u => `${v.namespace}/${u.name}`))
+              .map(v => [...v.reducers ,...v.effects].map(u => JSON.stringify(`${v.namespace}/${u.name}`)))
               .reduce((arr, cur) => [...arr, ...cur], [])
             if (types.length) {
-              item.insertText = new vscode.SnippetString('type: ${1|'+ types.join(',') +'|}') 
+              item.insertText = new vscode.SnippetString('type: ${1|'+ types.join(',') +'|},$0') 
             }
           }
           

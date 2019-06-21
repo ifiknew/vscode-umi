@@ -49,7 +49,6 @@ class CompilerHostService {
 
     // create a watcher to update host
     fs.watch(Workspace.src, { recursive: true }, (event, name) => {
-      console.log(event, name)
       const filePath = `${Workspace.src}/${name}`
       if (event === 'change') {
         this.subscribers.forEach(f => f({ path: filePath }))
