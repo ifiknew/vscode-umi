@@ -21,7 +21,6 @@ class LanguageService {
     context: vscode.CompletionContext
   ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
 
-    const program = this.compilerHostService.getProgram()
     const file = ts.createSourceFile('', document.getText(), ts.ScriptTarget.Latest, true)
 
     // find last character position as ts format
@@ -62,14 +61,17 @@ class LanguageService {
       return [
         ...['type', 'payload'].map(key => {
           const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Field)
+          item.preselect = true
+          item.kind = vscode.CompletionItemKind.Property
+          item.detail = `(property) ${key}: ${key === 'type' ? 'string' : 'object'}`
+
+          item.filterText = `${key}: `
           item.insertText = `${key}: `
+          
           if (key === 'type') {
-            const models = this.modelService.getModels();
-            const types = models
-              .map(v => [...v.reducers ,...v.effects].map(u => JSON.stringify(`${v.namespace}/${u.name}`)))
-              .reduce((arr, cur) => [...arr, ...cur], [])
-            if (types.length) {
-              item.insertText = new vscode.SnippetString('type: ${1|'+ types.join(',') +'|},$0') 
+            const actions = this.modelService.getActions()
+            if (actions.length) {
+              item.insertText = new vscode.SnippetString('type: ${1|'+ actions.map(v => v.type).join(',') +'|},$0') 
             }
           }
           
@@ -78,6 +80,7 @@ class LanguageService {
       ]
     }
 
+    // completion for payload object
     if (objectLiteralExpressionCount > 1) {
       return []
     }

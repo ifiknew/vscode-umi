@@ -9,18 +9,22 @@ interface ModelInfo {
   reducers: Array<{ name: string, type: ts.Type }>,
   effects: Array<{ name: string, type: ts.Type }>,
 }
+interface ActionInfo {
+  type: string
+  payload: ts.Type
+}
 
 @Registry.naming
 class ModelService {
 
   @Registry.inject
-  private compilerHostService?: CompilerHostService;
-  private modelInfos: Array<ModelInfo> = [];
+  private compilerHostService?: CompilerHostService
+  private modelInfos: Array<ModelInfo> = []
+  private actionInfos: Array<ActionInfo> = []
 
   constructor() {
     this.compilerHostService!.addFiles(...extractModelPathsFromWorkspace())
     this.compilerHostService!.subscribeFileChange(({ path }) => {
-      console.log(path)
       if (path.includes('/models/')) {
         this.extractModelInfos()
       }
@@ -56,12 +60,23 @@ class ModelService {
         const modelInfo = extractModelInfo(defaultExportType, { checker })
         return modelInfo
       })
-      .filter(Boolean)
-    this.modelInfos = modelInfos as any
+      .filter(Boolean) as ModelInfo[]
+    const actionInfos = modelInfos
+      .map(v => [...v.reducers ,...v.effects].map(u => ({
+        type: JSON.stringify(`${v.namespace}/${u.name}`),
+        payload: u.type
+      })))
+      .reduce((arr, cur) => [...arr, ...cur], [])
+    this.modelInfos = modelInfos
+    this.actionInfos = actionInfos
   }
 
   public getModels() {
     return this.modelInfos
+  }
+
+  public getActions() {
+    return this.actionInfos
   }
 }
 
