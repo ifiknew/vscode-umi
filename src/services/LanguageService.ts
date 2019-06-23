@@ -45,17 +45,18 @@ class LanguageService {
     if (dispatchCallIndex === -1) { return [] }
 
     // to judge whether to provide type or payload completion
-    const objectLiteralExpressionCount = nodes
+    // we extract object literal expressions from dispatch
+    const objectLiteralExpressions = nodes
       .slice(dispatchCallIndex)
-      .filter(v => v.kind === ts.SyntaxKind.ObjectLiteralExpression)
-      .length
-    
-    if (objectLiteralExpressionCount === 0) {
+      .filter(v => v.kind === ts.SyntaxKind.ObjectLiteralExpression) as ts.ObjectLiteralExpression[]
+
+    // need to type '{}' before providing completion items
+    if (objectLiteralExpressions.length === 0) {
       return []
     }
 
     // completion for type and payload
-    if (objectLiteralExpressionCount === 1) {
+    if (objectLiteralExpressions.length === 1) {
       const current = nodes[nodes.length - 1]
       const currentText = current.getText()
       return [
@@ -81,8 +82,42 @@ class LanguageService {
     }
 
     // completion for payload object
-    if (objectLiteralExpressionCount > 1) {
-      return []
+    if (objectLiteralExpressions.length > 1) {
+
+      // find payload type
+      const payload = objectLiteralExpressions[0]
+      const actionTypeNode = payload.properties.find(v => v.name!.getText() === 'type') as ts.PropertyAssignment
+      const actionTypeStr = actionTypeNode.initializer.getText()
+      const payloadType = this.modelService.getActions().find(v => v.type === actionTypeStr)!.payload
+
+      const current = objectLiteralExpressions[objectLiteralExpressions.length - 1]
+      
+      // we start from inside payload object and outside the one currently user is typing
+      const actionKeyPath = objectLiteralExpressions.slice(1, -1).reduce<string[]>(
+        (path, cur) => {
+          const identifier = cur.properties.find(v => v.pos <= current.pos && current.end <= v.end)
+          return [...path, identifier!.name!.getText()]
+        },
+        []
+      )
+
+      const checker = (payloadType as unknown as { checker: ts.TypeChecker }).checker
+      let currentType = actionKeyPath.reduce(
+        (type, cur) => {
+          const curSymbol = checker.getPropertyOfType(payloadType, cur)!
+          return checker.getTypeOfSymbolAtLocation(curSymbol, curSymbol.valueDeclaration)
+        },
+        payloadType
+      )
+      const currentAvaliableProperties = checker.getPropertiesOfType(payloadType)
+      
+      return currentAvaliableProperties.map(v => {
+        const item = new vscode.CompletionItem(v.getName(), vscode.CompletionItemKind.Property)
+        item.preselect = true
+        item.insertText = item.filterText = `${v.getName()}: `
+        item.detail = `(property) ${v.getName()}: any`
+        return item
+      })
     }
     return []
   }
