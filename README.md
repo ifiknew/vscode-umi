@@ -2,5 +2,7 @@
 To support some language features for umi.
 
 ## features
-[ ] dispatch snapshot  
-[ ] autocomplete action for dispatch  
+- [x] autocomplete action for dispatch  
+- [ ] diagnostics  
+- [ ] dispatch code snapshot  
+- [ ] go to defination  
