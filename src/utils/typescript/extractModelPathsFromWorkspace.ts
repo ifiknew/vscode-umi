@@ -1,5 +1,5 @@
 import * as ts from 'typescript'
-import Workspace from './Workspace';
+import Workspace from '../Workspace';
 
 function extractModelPathsFromWorkspace() {
   const modelPaths = ts.sys.readDirectory(Workspace.src)

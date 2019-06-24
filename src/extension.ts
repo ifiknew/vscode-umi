@@ -3,6 +3,8 @@ import 'reflect-metadata'
 import CompletionItemProvider from './providers/CompletionItemProvider';
 import Registry from './utils/Registry';
 
+import './plugins/DiagnosticPlugin';
+
 const typeScriptExtensionId = 'vscode.typescript-language-features';
 
 export async function activate(context: vscode.ExtensionContext) {
@@ -23,6 +25,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			Registry.lookup(CompletionItemProvider)
 		),
 	);
+	
 
 	console.log('Congratulations, your extension is now active!');
 }

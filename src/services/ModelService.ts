@@ -1,7 +1,7 @@
 import Registry from "../utils/Registry"
 import * as ts from 'typescript'
-import extractModelInfo from '../utils/extractModelInfo';
-import extractModelPathsFromWorkspace from '../utils/extractModelPathsFromWorkspace';
+import extractModelInfo from '../utils/typescript/extractModelInfo';
+import extractModelPathsFromWorkspace from '../utils/typescript/extractModelPathsFromWorkspace';
 import CompilerHostService from "./CompilerHostService";
 
 interface ModelInfo {

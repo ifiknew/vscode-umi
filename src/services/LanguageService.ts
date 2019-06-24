@@ -3,7 +3,7 @@ import * as ts from 'typescript'
 import * as vscode from 'vscode'
 import ModelService from "./ModelService"
 import generateNodePath from "../utils/generateNodePath";
-import createSourceFile from "../utils/createSourceFile";
+import createSourceFile from "../utils/typescript/createSourceFile";
 import CompilerHostService from "./CompilerHostService";
 
 @Registry.naming
@@ -39,7 +39,7 @@ class LanguageService {
   private provideDispatchCall(nodes: ts.Node[]) {
     const dispatchCallIndex = nodes
       .findIndex(v => 
-        v.kind === ts.SyntaxKind.CallExpression 
+        ts.isCallExpression(v)
         && v.getChildAt(0).getLastToken()!.getText() === 'dispatch'
       )
     if (dispatchCallIndex === -1) { return [] }
@@ -48,7 +48,7 @@ class LanguageService {
     // we extract object literal expressions from dispatch
     const objectLiteralExpressions = nodes
       .slice(dispatchCallIndex)
-      .filter(v => v.kind === ts.SyntaxKind.ObjectLiteralExpression) as ts.ObjectLiteralExpression[]
+      .filter(ts.isObjectLiteralExpression)
 
     // need to type '{}' before providing completion items
     if (objectLiteralExpressions.length === 0) {

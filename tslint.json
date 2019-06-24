@@ -9,7 +9,7 @@
 			false,
 			"always"
 		],
-		"triple-equals": true
+		"triple-equals": [true, "allow-null-check"]
 	},
 	"defaultSeverity": "warning"
 }
