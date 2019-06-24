@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import 'reflect-metadata'
 import CompletionItemProvider from './providers/CompletionItemProvider';
+import Registry from './utils/Registry';
 
 const typeScriptExtensionId = 'vscode.typescript-language-features';
 
@@ -19,9 +20,10 @@ export async function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(
 		vscode.languages.registerCompletionItemProvider(
 			selectors, 
-			new CompletionItemProvider()
+			Registry.lookup(CompletionItemProvider)
 		),
 	);
+
 	console.log('Congratulations, your extension is now active!');
 }
 export function deactivate() {}

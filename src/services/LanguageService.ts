@@ -3,6 +3,8 @@ import * as ts from 'typescript'
 import * as vscode from 'vscode'
 import ModelService from "./ModelService"
 import generateNodePath from "../utils/generateNodePath";
+import createSourceFile from "../utils/createSourceFile";
+import CompilerHostService from "./CompilerHostService";
 
 @Registry.naming
 class LanguageService {
@@ -10,15 +12,16 @@ class LanguageService {
   @Registry.inject
   private modelService!: ModelService
 
+  @Registry.inject
+  private compilerHostService!: CompilerHostService
+
   provideCompletionItems(
     document: vscode.TextDocument, 
     position: vscode.Position, 
     token: vscode.CancellationToken, 
     context: vscode.CompletionContext
   ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
-
-    const file = ts.createSourceFile('', document.getText(), ts.ScriptTarget.Latest, true)
-
+    const file = createSourceFile(document.getText())
     // find last character position as ts format
     const tsPosition = file.getPositionOfLineAndCharacter(position.line, Math.max(0, position.character - 1))
     let path = generateNodePath(file, tsPosition)
@@ -26,12 +29,13 @@ class LanguageService {
     const items: vscode.CompletionItem[] = []
     items.push(...this.provideDispatchCall(path))
 
-    console.log(path)
-    console.log(path.map(v => v.getText()))
-    console.log(items)
 		return items
   }
   
+  /**
+   * to complete type and payload within a dispatch call
+   * @param nodes node path from the whole file to current node
+   */
   private provideDispatchCall(nodes: ts.Node[]) {
     const dispatchCallIndex = nodes
       .findIndex(v => 
@@ -95,7 +99,7 @@ class LanguageService {
         []
       )
 
-      const checker = (payloadType as unknown as { checker: ts.TypeChecker }).checker
+      const checker = this.compilerHostService.getProgram().getTypeChecker()
       let currentType = actionKeyPath.reduce(
         (type, cur) => {
           const curSymbol = checker.getPropertyOfType(type, cur)!
