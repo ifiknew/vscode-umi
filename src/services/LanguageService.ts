@@ -2,7 +2,6 @@ import Registry from "../utils/Registry"
 import * as ts from 'typescript'
 import * as vscode from 'vscode'
 import ModelService from "./ModelService"
-import CompilerHostService from "./CompilerHostService";
 import generateNodePath from "../utils/generateNodePath";
 
 @Registry.naming
@@ -10,9 +9,6 @@ class LanguageService {
 
   @Registry.inject
   private modelService!: ModelService
-
-  @Registry.inject
-  private compilerHostService!: CompilerHostService
 
   provideCompletionItems(
     document: vscode.TextDocument, 
@@ -57,8 +53,6 @@ class LanguageService {
 
     // completion for type and payload
     if (objectLiteralExpressions.length === 1) {
-      const current = nodes[nodes.length - 1]
-      const currentText = current.getText()
       return [
         ...['type', 'payload'].map(key => {
           const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Field)
@@ -104,18 +98,20 @@ class LanguageService {
       const checker = (payloadType as unknown as { checker: ts.TypeChecker }).checker
       let currentType = actionKeyPath.reduce(
         (type, cur) => {
-          const curSymbol = checker.getPropertyOfType(payloadType, cur)!
+          const curSymbol = checker.getPropertyOfType(type, cur)!
           return checker.getTypeOfSymbolAtLocation(curSymbol, curSymbol.valueDeclaration)
         },
         payloadType
       )
-      const currentAvaliableProperties = checker.getPropertiesOfType(payloadType)
+      const currentAvaliableProperties = checker.getPropertiesOfType(currentType)
       
       return currentAvaliableProperties.map(v => {
-        const item = new vscode.CompletionItem(v.getName(), vscode.CompletionItemKind.Property)
+        const item = new vscode.CompletionItem(v.getName(), vscode.CompletionItemKind.Field)
         item.preselect = true
         item.insertText = item.filterText = `${v.getName()}: `
-        item.detail = `(property) ${v.getName()}: any`
+        const propertyType = checker.getTypeOfSymbolAtLocation(v, v.valueDeclaration)
+        const propertyTypeName = checker.typeToString(propertyType)
+        item.detail = `(property) ${v.getName()}: ${propertyTypeName}`
         return item
       })
     }
