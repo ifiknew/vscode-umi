@@ -5,7 +5,7 @@ interface ExtractContext {
 }
 
 function extractPropertyTypeFromObjectType(objectType: ts.Type, propertyKey: string, { checker }: ExtractContext) {
-  const properties = checker.getPropertiesOfType(objectType)
-
+  const property = checker.getPropertyOfType(objectType, propertyKey)
+  
   return null
 }

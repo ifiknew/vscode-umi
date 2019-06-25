@@ -2,8 +2,8 @@ import Registry from "../utils/Registry"
 import * as ts from 'typescript'
 import * as vscode from 'vscode'
 import ModelService from "./ModelService"
-import generateNodePath from "../utils/generateNodePath";
-import createSourceFile from "../utils/typescript/createSourceFile";
+import generateNodePath from "../utils/parser/generateNodePath";
+import createSourceFile from "../utils/parser/createSourceFile";
 import CompilerHostService from "./CompilerHostService";
 
 @Registry.naming

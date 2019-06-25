@@ -1,15 +1,15 @@
 import Registry from "../utils/Registry"
 import * as ts from 'typescript'
-import extractModelInfo from '../utils/typescript/extractModelInfo';
-import extractModelPathsFromWorkspace from '../utils/typescript/extractModelPathsFromWorkspace';
+import extractModelInfo from '../utils/parser/extractModelInfo';
+import extractModelPathsFromWorkspace from '../utils/parser/extractModelPathsFromWorkspace';
 import CompilerHostService from "./CompilerHostService";
 
-interface ModelInfo {
+export interface ModelInfo {
   namespace: string;
   reducers: Array<{ name: string, type: ts.Type }>,
   effects: Array<{ name: string, type: ts.Type }>,
 }
-interface ActionInfo {
+export interface ActionInfo {
   type: string
   payload: ts.Type
 }
@@ -63,7 +63,7 @@ class ModelService {
       .filter(Boolean) as ModelInfo[]
     const actionInfos = modelInfos
       .map(v => [...v.reducers ,...v.effects].map(u => ({
-        type: JSON.stringify(`${v.namespace}/${u.name}`),
+        type: JSON.stringify(`${v.namespace}/${u.name}`), // add quote for action type string
         payload: u.type
       })))
       .reduce((arr, cur) => [...arr, ...cur], [])
