@@ -1,10 +1,12 @@
 import * as vscode from 'vscode'
 import * as ts from 'typescript'
 import createDiagnostic from './createDiagnostic';
+
 /**
  * get diagnostics of a node by matching the type
  * @param node the node to be parsed
  * @param type match a the 
+ * to solve all types is of great complexity, see typescript/src/compiler/checker - checkSourceElementWorker to know what should be done
  */
 function getNodeDiagnostics(node: ts.Node, type: ts.Type, { checker }: { checker: ts.TypeChecker }) {
   
@@ -15,6 +17,9 @@ function getNodeDiagnostics(node: ts.Node, type: ts.Type, { checker }: { checker
 
   if (ts.isObjectLiteralExpression(node)) {
     return visitObjectLiteralExpression(node, type, { checker })
+  }
+  if (ts.isStringLiteral(node)) {
+    return visitStringLiteral(node, type, { checker })
   }
 
   return []
@@ -40,7 +45,7 @@ function visitObjectLiteralExpression(node: ts.ObjectLiteralExpression, type: ts
       }
       return []
     })
-    .reduce((a, b) => [...a, ...b], [])
+    .flat()
   )
   diagnostics.push(...properties
     .map(v => {
@@ -52,7 +57,7 @@ function visitObjectLiteralExpression(node: ts.ObjectLiteralExpression, type: ts
       }
       return []
     })
-    .reduce((a, b) => [...a, ...b], [])
+    .flat()
   )
 
   // check property values
@@ -60,8 +65,16 @@ function visitObjectLiteralExpression(node: ts.ObjectLiteralExpression, type: ts
     .map(v => {
       return [] as vscode.Diagnostic[]
     })
-    .reduce((a, b) => [...a, ...b], [])
+    .flat()
     .concat(diagnostics)
+}
+
+function visitStringLiteral(node: ts.StringLiteral, type: ts.Type, { checker }: { checker: ts.TypeChecker }) {
+  if (type.flags !== ts.TypeFlags.String) {
+    const parent = node.parent as ts.PropertyAssignment
+    return [createDiagnostic(node, `property '${parent.name.getText()}' should be type ${checker.typeToString(type)}, but found 'string' instead`)]
+  }
+  return []
 }
 
 export default getNodeDiagnostics
