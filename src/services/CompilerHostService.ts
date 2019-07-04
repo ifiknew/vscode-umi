@@ -3,11 +3,22 @@ import * as ts from 'typescript'
 import * as vscode from 'vscode'
 import Workspace from "../utils/Workspace";
 import * as fs from 'fs'
+import InMemoryFile from "../utils/InMemoryFile";
 
 interface FileChangeHandler {
   (file: { path: string }): void
 }
 
+interface DirectoryWatchHook {
+  type: 'dir',
+  path: string,
+  callback: ts.DirectoryWatcherCallback
+}
+interface FileWatchHook {
+  type: 'file',
+  path: string,
+  callback: ts.FileWatcherCallback
+}
 /**
  * A compiler host in response of file changes,
  * and a publisher of file changes
@@ -18,6 +29,13 @@ class CompilerHostService {
   private watchProgram: ts.WatchOfFilesAndCompilerOptions<ts.SemanticDiagnosticsBuilderProgram>;
 
   private files: string[] = [];
+
+  private inMemoryFiles: Map<string, string> = new Map();
+
+  /**
+   * used to notify changes for in memory files
+   */
+  private watchHooks: Array<DirectoryWatchHook | FileWatchHook> = [];
 
   private subscribers: Array<FileChangeHandler> = [];
 
@@ -45,8 +63,41 @@ class CompilerHostService {
         ))
       }
     )
-    
-    this.watchProgram = ts.createWatchProgram(host)
+
+    //override some functions for in memory files
+    const proxyHost = host
+    proxyHost.readFile = (path, encoding) => {
+      if (InMemoryFile.regExp.test(path)) {
+        return this.inMemoryFiles.get(path)
+      }
+      return ts.sys.readFile(path, encoding)
+    }
+    proxyHost.fileExists = (path) => {
+      if (InMemoryFile.regExp.test(path)) {
+        return this.inMemoryFiles.get(path) != null
+      }
+      return ts.sys.fileExists(path)
+    }
+    proxyHost.watchDirectory = (path, callback, recursive) => {
+      this.watchHooks.push({
+        type: 'dir',
+        path,
+        callback
+      })
+      return ts.sys.watchDirectory!(path, callback, recursive)
+    }
+    proxyHost.watchFile = (path, callback, pollingInterval) => {
+      if (InMemoryFile.regExp.test(path)) {
+        this.watchHooks.push({
+          type: 'file',
+          path,
+          callback
+        })
+      }
+      return ts.sys.watchFile!(path, callback, pollingInterval)
+    }
+
+    this.watchProgram = ts.createWatchProgram(proxyHost)
 
     // create a watcher to update host
     fs.watch(Workspace.src, { recursive: true }, (event, name) => {
@@ -87,6 +138,24 @@ class CompilerHostService {
     this.updateRootFileNames()
   }
 
+  public updateInMemoryFile(path: string, text: string) {
+    const fileExists = this.inMemoryFiles.has(path)
+    this.inMemoryFiles.set(path, text)
+
+    if (!fileExists) {
+      this.updateRootFileNames()
+    }
+    this.watchHooks.forEach(hook => {
+      if (path.includes(hook.path)) {
+        if (hook.type === 'dir') {
+          hook.callback(path)
+        } else {
+          hook.callback(path, fileExists ? ts.FileWatcherEventKind.Changed : ts.FileWatcherEventKind.Created)
+        }
+      }
+    })
+  }
+
   public getProgram() {
     const builderProgram = this.watchProgram.getProgram()
     const program = builderProgram.getProgram()
@@ -100,7 +169,7 @@ class CompilerHostService {
   }
 
   private updateRootFileNames() {
-    this.watchProgram.updateRootFileNames(this.files)
+    this.watchProgram.updateRootFileNames([...this.files, ...this.inMemoryFiles.keys()])
   }
 }
 
