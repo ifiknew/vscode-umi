@@ -78,6 +78,13 @@ const objectVisitor: Visitor = (nodeType, matchType, { checker }) => {
   return diagnostics
 }
 
+const enumVisitor: Visitor = (nodeType, matchType, context) => {
+  if (nodeType === matchType) {
+    return []
+  }
+  return generateSimpleTypeDiagnostics(nodeType, matchType, context)
+}
+
 const createLiteralVisitor: (flags: ts.TypeFlags) => Visitor = (flags) => (nodeType, matchType, context) => {
   if (matchType.flags & flags) {
     return []
@@ -106,6 +113,7 @@ const visitorDescriptions: Array<{ flags: number, visitor: Visitor }> = [
   { flags: ts.TypeFlags.String, visitor: createLiteralVisitor(ts.TypeFlags.String) },
   { flags: ts.TypeFlags.Number, visitor: createLiteralVisitor(ts.TypeFlags.Number) },
   { flags: ts.TypeFlags.Boolean, visitor: createLiteralVisitor(ts.TypeFlags.Boolean) },
+  { flags: ts.TypeFlags.EnumLiteral, visitor: enumVisitor },
 ]
 
 export default getNodeDiagnostics
