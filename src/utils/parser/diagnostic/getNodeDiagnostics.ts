@@ -26,7 +26,8 @@ interface VisitorContext {
     nodeType: ts.Type,
     matchType: ts.Type,
     property?: ts.Symbol
-  }
+  },
+  originalMatchType?: ts.Type
 }
 /**
  * Visitors are functions to generate diagnostics for specific nodes
@@ -37,6 +38,41 @@ interface Visitor {
 
 const autoVisitor: Visitor = (nodeType, matchType, context) => {
   const visitorDesc = visitorDescriptions.find(v => v.flags & nodeType.flags)
+
+  // handle union or intersection type
+  if (
+    (nodeType.flags & ts.TypeFlags.Union)
+    && !(nodeType.flags & ts.TypeFlags.EnumLike)
+  ) {
+    const types = (nodeType as ts.UnionType).types
+    return types
+      .map(v => autoVisitor(v, matchType, context))
+      .sort((a, b) => a.length - b.length)
+      [0]
+  }
+  if (nodeType.flags & ts.TypeFlags.Intersection) {
+    const types = (nodeType as ts.IntersectionType).types
+    return types
+      .map(v => autoVisitor(v, matchType, context))
+      .flat()
+  }
+  if (
+    (matchType.flags & ts.TypeFlags.Union)
+    && !(matchType.flags & ts.TypeFlags.EnumLike)
+  ) {
+    const types = (matchType as ts.UnionType).types
+    return types
+      .map(v => autoVisitor(nodeType, v, { ...context, originalMatchType: matchType }))
+      .sort((a, b) => a.length - b.length)
+      [0]
+  }
+  if (matchType.flags & ts.TypeFlags.Intersection) {
+    const types = (matchType as ts.IntersectionType).types
+    return types
+      .map(v => autoVisitor(nodeType, v, { ...context, originalMatchType: matchType }))
+      .flat()
+  }
+
   return visitorDesc ? visitorDesc.visitor(nodeType, matchType, context) : []
 }
 
@@ -92,7 +128,7 @@ const createLiteralVisitor: (flags: ts.TypeFlags) => Visitor = (flags) => (nodeT
   return generateSimpleTypeDiagnostics(nodeType, matchType, context)
 }
 
-const generateSimpleTypeDiagnostics: Visitor = (nodeType, matchType, { checker, parent }) => {
+const generateSimpleTypeDiagnostics: Visitor = (nodeType, matchType, { checker, parent, originalMatchType }) => {
   if (parent && parent.nodeType.symbol.declarations) {
     return [
       createDiagnostic(
@@ -101,7 +137,7 @@ const generateSimpleTypeDiagnostics: Visitor = (nodeType, matchType, { checker, 
       ),
       createDiagnostic(
         parent.nodeType.symbol.declarations[0],
-        `type '${checker.typeToString(nodeType)}' not match '${checker.typeToString(matchType)}'${parent.property ? ` in property '${parent.property.name || ''}'`: ''}`
+        `type '${checker.typeToString(nodeType)}' not match '${checker.typeToString(originalMatchType || matchType)}'${parent.property ? ` in property '${parent.property.name || ''}'`: ''}`
       ),
     ]
   }
@@ -112,7 +148,7 @@ const visitorDescriptions: Array<{ flags: number, visitor: Visitor }> = [
   { flags: ts.TypeFlags.Object, visitor: objectVisitor },
   { flags: ts.TypeFlags.String, visitor: createLiteralVisitor(ts.TypeFlags.String) },
   { flags: ts.TypeFlags.Number, visitor: createLiteralVisitor(ts.TypeFlags.Number) },
-  { flags: ts.TypeFlags.Boolean, visitor: createLiteralVisitor(ts.TypeFlags.Boolean) },
+  { flags: ts.TypeFlags.BooleanLiteral, visitor: createLiteralVisitor(ts.TypeFlags.Boolean) },
   { flags: ts.TypeFlags.EnumLiteral, visitor: enumVisitor },
 ]
 
