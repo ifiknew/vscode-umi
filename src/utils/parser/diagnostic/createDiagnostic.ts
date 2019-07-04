@@ -8,7 +8,7 @@ export function createDiagnosticForFile(file: ts.SourceFile, pos: number, end: n
 
   return new vscode.Diagnostic(
     new vscode.Range(new vscode.Position(startPos.line, startPos.character), new vscode.Position(endPos.line, endPos.character)),
-    `[umi] ${message}`,
+    `[vscode-umi] ${message}`,
     severity
   )
 }

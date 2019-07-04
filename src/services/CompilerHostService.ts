@@ -45,6 +45,7 @@ class CompilerHostService {
         ))
       }
     )
+    
     this.watchProgram = ts.createWatchProgram(host)
 
     // create a watcher to update host
@@ -78,12 +79,12 @@ class CompilerHostService {
 
   public addFiles(...fileNames: string[]) {
     this.files = [...this.files.filter(v => !fileNames.includes(v)), ...fileNames]
-    this.watchProgram.updateRootFileNames(this.files)
+    this.updateRootFileNames()
   }
 
   public removeFiles(...fileNames: string[]) {
     this.files = this.files.filter(v => !fileNames.includes(v))
-    this.watchProgram.updateRootFileNames(this.files)
+    this.updateRootFileNames()
   }
 
   public getProgram() {
@@ -96,6 +97,10 @@ class CompilerHostService {
     this.subscribers = [...this.subscribers, handler]
 
     return () => this.subscribers = this.subscribers.filter(v => v !== handler)
+  }
+
+  private updateRootFileNames() {
+    this.watchProgram.updateRootFileNames(this.files)
   }
 }
 

@@ -2,6 +2,11 @@ import * as ts from 'typescript'
 interface ExtractContext {
   checker: ts.TypeChecker
 }
+interface ExtractActionInfo {
+  name: string
+  type?: ts.Node
+  required: boolean
+}
 /**
  * extract dva model info from the model's Type
  * @param type 
@@ -36,6 +41,7 @@ function extractReducers(symbol: ts.Symbol, option: ExtractContext) {
       // we extract the type of the second function parameter as reducer payload type
       return {
         name: v.name,
+        required: v.paramRequireds[1],
         type: v.types[1]
       } 
     })
@@ -47,6 +53,7 @@ function extractEffects(symbol: ts.Symbol, option: ExtractContext) {
       // we extract the type of the first function parameter as effect payload type
       return {
         name: v.name,
+        required: v.paramRequireds[0],
         type: v.types[0]
       } 
     })
@@ -65,6 +72,12 @@ function extractFunctionNameAndParameterTypesFromObjectSymbol(symbol: ts.Symbol,
     const [ callSignature ] = functionType.getCallSignatures()
     return {
       name: v.name,
+      paramRequireds: callSignature.parameters
+        .map(v => v.declarations[0])
+        .map(v => ts.isParameter(v) ? (v.initializer || v.questionToken) : true ),
+      paramUseds: callSignature.parameters
+        .map(v => v.declarations[0])
+        .map(Boolean),
       types: callSignature.parameters
         .map(v => checker.getTypeOfSymbolAtLocation(v, v.valueDeclaration))
     }

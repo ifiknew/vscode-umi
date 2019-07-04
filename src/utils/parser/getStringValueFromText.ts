@@ -1,3 +1,6 @@
+/**
+ * remove quotes for string
+ */
 function getStringValueFromText(s: string) {
   return [`'`, `"`].reduce(
     (str, quote) => {

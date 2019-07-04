@@ -5,13 +5,14 @@ import extractModelPathsFromWorkspace from '../utils/parser/extractModelPathsFro
 import CompilerHostService from "./CompilerHostService";
 
 export interface ModelInfo {
-  namespace: string;
-  reducers: Array<{ name: string, type: ts.Type }>,
-  effects: Array<{ name: string, type: ts.Type }>,
+  namespace: string
+  reducers: Array<{ name: string, type: ts.Type, required: boolean }>,
+  effects: Array<{ name: string, type: ts.Type, required: boolean }>,
 }
 export interface ActionInfo {
   type: string
   payload: ts.Type
+  payloadRequired: boolean
 }
 
 @Registry.naming
@@ -64,7 +65,8 @@ class ModelService {
     const actionInfos = modelInfos
       .map(v => [...v.reducers ,...v.effects].map(u => ({
         type: JSON.stringify(`${v.namespace}/${u.name}`), // add quote for action type string
-        payload: u.type
+        payload: u.type,
+        payloadRequired: u.required
       })))
       .reduce((arr, cur) => [...arr, ...cur], [])
     this.modelInfos = modelInfos
