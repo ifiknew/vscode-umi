@@ -41,6 +41,7 @@
 	},
 	"dependencies": {
 		"@types/react": "^16.8.19",
+		"core-js": "^3.1.4",
 		"react": "^16.8.6",
 		"react-docgen-typescript": "^1.12.4"
 	}

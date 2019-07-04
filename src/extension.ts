@@ -1,3 +1,5 @@
+import 'core-js/features/array/flat';
+
 import * as vscode from 'vscode';
 import 'reflect-metadata'
 import CompletionItemProvider from './providers/CompletionItemProvider';

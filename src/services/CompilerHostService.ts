@@ -96,9 +96,9 @@ class CompilerHostService {
       }
       return ts.sys.watchFile!(path, callback, pollingInterval)
     }
-
+    
     this.watchProgram = ts.createWatchProgram(proxyHost)
-
+    
     // create a watcher to update host
     fs.watch(Workspace.src, { recursive: true }, (event, name) => {
       const filePath = `${Workspace.src}/${name}`
