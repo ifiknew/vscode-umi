@@ -3,6 +3,6 @@ To support some language features for umi.
 
 ## features
 - [x] autocomplete action for dispatch  
-- [ ] diagnostics  
+- [x] diagnostics  
 - [ ] dispatch code snapshot  
 - [ ] go to defination  
