@@ -24,27 +24,35 @@ export default class DiagnosticPlugin {
   private disposables: vscode.Disposable[] = []
   
   constructor() {
-    /**
-     * @todo listen to compilerhost file change and judge whether to provide diagnostics
-     */
-    this.disposables.push(
-      vscode.workspace.onDidOpenTextDocument(doc => {
-        this.provideDiagnostics(doc)
-      }),
-      vscode.workspace.onDidChangeTextDocument(e => {
-        console.log('change text docs')
-        this.provideDiagnostics(e.document)
-      }),
-    )
+    const unsubscribe = this.compilerHostService.subscribeFileChange(({ path }) => {
+      this.provideDiagnostics(path)
+    })
+    vscode.window.onDidChangeActiveTextEditor(e => {
+      if (!e) { return }
+      this.provideDiagnostics(e.document.fileName)
+    })
+    this.disposables.push({
+      dispose: unsubscribe
+    })
   }
 
-  private provideDiagnostics(document: vscode.TextDocument) {
+  private provideDiagnostics(fileName: string) {
+    // only provide diagnostics for current active file
+    if (
+      !vscode.window.activeTextEditor 
+      || !(InMemoryFile.toRealFileName(fileName) === vscode.window.activeTextEditor.document.fileName)
+    ) {
+      return []
+    }
+
     this.diagnosticCollection.clear()
     const diagnostics: vscode.Diagnostic[] = []
-    const fileName = document.fileName.replace(/(\.[^.]*)$/, `${InMemoryFile.middleExt}$1`)
-    this.compilerHostService.updateInMemoryFile(fileName, document.getText())
-    const file = this.compilerHostService.getProgram().getSourceFile(fileName)
+    const program = this.compilerHostService.getProgram()
+    
+    // priority given to in memory file
+    const file = program.getSourceFile(InMemoryFile.toInMemoryFileName(fileName)) || program.getSourceFile(fileName)
     if (!file) { return }
+
     // check dispatch call
     traverse(file, node => {
       if (
@@ -54,12 +62,12 @@ export default class DiagnosticPlugin {
         diagnostics.push(...getDispatchCallDiagnostics(
           node, 
           this.modelService.getActions(), 
-          { checker: this.compilerHostService.getProgram().getTypeChecker() }
+          { checker: program.getTypeChecker() }
         ))
         return TraverseAction.BlockChildren
       }
     })
-    this.diagnosticCollection.set(document.uri, diagnostics)
+    this.diagnosticCollection.set(vscode.Uri.file(InMemoryFile.toRealFileName(fileName)), diagnostics)
   }
 
   public dispose() {

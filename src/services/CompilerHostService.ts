@@ -28,7 +28,15 @@ class CompilerHostService {
 
   private watchProgram: ts.WatchOfFilesAndCompilerOptions<ts.SemanticDiagnosticsBuilderProgram>;
 
+  /**
+   * root files passed to compiler host
+   */
   private files: string[] = [];
+
+  /**
+   * each time after compiler host has done current work, notify changes and clear this cache
+   */
+  private changedFiles: string[] = [];
 
   private inMemoryFiles: Map<string, string> = new Map();
 
@@ -53,7 +61,14 @@ class CompilerHostService {
       ts.sys,
       createProgram,
       undefined,
-      function reportWatchStatusChanged(diagnostic: ts.Diagnostic) {
+      (diagnostic: ts.Diagnostic) => {
+        // watch status changes not only on editing files
+        // make sure those changed files are consumed before call for subscribers or dead loop occurs
+        const notifyFiles = this.changedFiles
+        this.changedFiles = []
+        notifyFiles.forEach(filePath => {
+          this.subscribers.forEach(f => f({ path: filePath }))
+        })
         console.info(ts.formatDiagnostic(
           diagnostic, 
           {
@@ -65,7 +80,7 @@ class CompilerHostService {
       }
     )
 
-    //override some functions for in memory files
+    // override some functions for in memory files
     const proxyHost = host
     proxyHost.readFile = (path, encoding) => {
       if (InMemoryFile.regExp.test(path)) {
@@ -104,7 +119,7 @@ class CompilerHostService {
     fs.watch(Workspace.src, { recursive: true }, (event, name) => {
       const filePath = `${Workspace.src}/${name}`
       if (event === 'change') {
-        this.subscribers.forEach(f => f({ path: filePath }))
+        this.changedFiles.push(filePath)
       } else if (event === 'rename') {
         if (fs.existsSync(filePath)) {
           this.addFiles(filePath)
@@ -113,15 +128,18 @@ class CompilerHostService {
         }
       }
     })
-    
-    
-    // listen to the event when user openning a text editor
+
+    // listen to the event when user openning a text editor or editing a document and 
     vscode.window.onDidChangeActiveTextEditor((e) => {
       if (!e) { return }
       const path = e.document.uri.path
       if (path.includes(Workspace.src)) {
         this.addFiles(path)
       }
+    })
+    vscode.workspace.onDidChangeTextDocument(({ document }) => {
+      const fileName = InMemoryFile.toInMemoryFileName(document.fileName)
+      this.updateInMemoryFile(fileName, document.getText())
     })
 
     // add files currently active
@@ -131,6 +149,7 @@ class CompilerHostService {
 
   public addFiles(...fileNames: string[]) {
     this.files = [...this.files.filter(v => !fileNames.includes(v)), ...fileNames]
+    this.changedFiles.push(...fileNames)
     this.updateRootFileNames()
   }
 
@@ -142,7 +161,7 @@ class CompilerHostService {
   public updateInMemoryFile(path: string, text: string) {
     const fileExists = this.inMemoryFiles.has(path)
     this.inMemoryFiles.set(path, text)
-
+    this.changedFiles.push(path)
     if (!fileExists) {
       this.updateRootFileNames()
     }
@@ -163,6 +182,9 @@ class CompilerHostService {
     return program
   }
 
+  /**
+   * notice that file change only fired after compiler host done compliling
+   */
   public subscribeFileChange(handler: FileChangeHandler) {
     this.subscribers = [...this.subscribers, handler]
 
