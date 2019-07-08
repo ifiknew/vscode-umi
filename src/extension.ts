@@ -13,7 +13,9 @@ export async function activate(context: vscode.ExtensionContext) {
 
 	const selectors = [
 		{ scheme: 'file', language: 'typescript' }, 
-		{ scheme: 'file', language: 'typescriptreact' }
+		{ scheme: 'file', language: 'typescriptreact' },
+		{ scheme: 'file', language: 'javascript' }, 
+		{ scheme: 'file', language: 'javascriptreact' }
 	]
 	context.subscriptions.push(
 		vscode.languages.registerCompletionItemProvider(
