@@ -3,6 +3,7 @@ import * as ts from 'typescript'
 import extractModelInfo, { ExtractActionInfo } from '../utils/parser/extractModelInfo';
 import extractModelPathsFromWorkspace from '../utils/parser/extractModelPathsFromWorkspace';
 import CompilerHostService from "./CompilerHostService";
+import InMemoryFile from "../utils/InMemoryFile";
 
 export interface ModelInfo {
   namespace: string
@@ -29,7 +30,7 @@ class ModelService {
   constructor() {
     this.compilerHostService!.addFiles(...extractModelPathsFromWorkspace())
     this.compilerHostService!.subscribeFileChange(({ path }) => {
-      if (path.includes('/models/')) {
+      if (path.includes('/models/') && !path.includes(InMemoryFile.middleExt)) {
         this.extractModelInfos()
       }
     })
@@ -42,7 +43,7 @@ class ModelService {
     const checker = program.getTypeChecker()
 
     const files = program.getSourceFiles()
-    const modelFiles = files.filter(v => v.fileName.includes('/src') && v.fileName.includes('/models'))
+    const modelFiles = files.filter(v => v.fileName.includes('/src') && v.fileName.includes('/models') && !v.fileName.includes(InMemoryFile.middleExt))
 
     const modelInfos = modelFiles
       .map(v => ({ fileNode: v, symbol: checker.getSymbolAtLocation(v) }))
