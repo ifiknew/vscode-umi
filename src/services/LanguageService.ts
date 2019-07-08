@@ -1,11 +1,16 @@
 import Registry from "../utils/Registry"
 import * as ts from 'typescript'
 import * as vscode from 'vscode'
-import ModelService from "./ModelService"
-import generateNodePath from "../utils/parser/generateNodePath";
+import ModelService, { ActionInfo } from "./ModelService"
+import generateNodePath, { isWithin } from "../utils/parser/generateNodePath";
 import createSourceFile from "../utils/parser/createSourceFile";
 import CompilerHostService from "./CompilerHostService";
 import createRangeFromNode from "../utils/parser/createRangeFromNode";
+import Config from "../utils/Config";
+
+interface ActionInfoWithNode extends ActionInfo {
+  payloadNode: ts.Node
+}
 
 @Registry.naming
 class LanguageService {
@@ -35,19 +40,14 @@ class LanguageService {
     return this.provideDispatchCallDefinition(path)
   }
   
-  /**
-   * find all nodes that current position is within
-   */
-  private generateNodePath(document: vscode.TextDocument, position: vscode.Position): ts.Node[] {
-    const file = createSourceFile(document.getText())
-    // find last character position as ts format
-    const tsPosition = file.getPositionOfLineAndCharacter(position.line, Math.max(0, position.character - 1))
-    let path = generateNodePath(file, tsPosition)
-    return path
-  }
-
-  private isDispatchCall(node: ts.Node): boolean {
-    return ts.isCallExpression(node) && node.getChildAt(0).getLastToken()!.getText() === 'dispatch'
+  provideSignatureHelp(
+    document: vscode.TextDocument, 
+    position: vscode.Position, 
+    token: vscode.CancellationToken, 
+    context: vscode.SignatureHelpContext
+  ): vscode.ProviderResult<vscode.SignatureHelp> {
+    const path = this.generateNodePath(document, position)
+    return this.provideDispatchCallSignature(path, position)
   }
 
   /**
@@ -55,14 +55,11 @@ class LanguageService {
    * @param nodes node path from the whole file to current node
    */
   private provideDispatchCallCompletion(nodes: ts.Node[]): vscode.CompletionItem[] {
-    const dispatchCallIndex = nodes.findIndex(this.isDispatchCall)
-    if (dispatchCallIndex === -1) { return [] }
 
     // to judge whether to provide type or payload completion
     // we extract object literal expressions from dispatch
-    const objectLiteralExpressions = nodes
-      .slice(dispatchCallIndex)
-      .filter(ts.isObjectLiteralExpression)
+    const objectLiteralExpressions = this.extractDispatchCallNodes(nodes)
+    if (!objectLiteralExpressions) { return [] }
 
     // need to type '{}' before providing completion items
     if (objectLiteralExpressions.length === 0) {
@@ -84,7 +81,7 @@ class LanguageService {
           if (key === 'type') {
             const actions = this.modelService.getActions()
             if (actions.length) {
-              item.insertText = new vscode.SnippetString('type: ${1|'+ actions.map(v => v.type).join(',') +'|},$0') 
+              item.insertText = new vscode.SnippetString('type: ${1|'+ actions.map(v => v.type).join(',') +'|}') 
             }
           }
           
@@ -137,33 +134,113 @@ class LanguageService {
   }
 
   /**
-   * 
-   * @param nodes 
+   * to peek or jump to code in models where current action is defined 
    */
   private provideDispatchCallDefinition(nodes: ts.Node[]): vscode.LocationLink[] {
-    const dispatchCallIndex = nodes.findIndex(this.isDispatchCall)
-    if (dispatchCallIndex === -1) { return [] }
-
-    const objectLiteralExpressions = nodes
-      .slice(dispatchCallIndex)
-      .filter(ts.isObjectLiteralExpression)
-    if (objectLiteralExpressions.length === 0) { return [] }
-
-    const payload = objectLiteralExpressions[0]
-    const actionTypeNode = payload.properties.find(v => v.name!.getText() === 'type') as ts.PropertyAssignment
-    const actionTypeStr = actionTypeNode.initializer.getText()
-    const actionInfo = this.modelService.getActions().find(v => v.type === actionTypeStr)!
-
+    const actionInfo = this.extractActionInfo(nodes)
+    if (!actionInfo) { return [] }
     const locationLinks: vscode.LocationLink[] = [
       {
         targetUri: vscode.Uri.file(actionInfo.sourceFile.fileName),
         targetRange: createRangeFromNode(actionInfo.definition),
-        originSelectionRange: createRangeFromNode(payload)
+        originSelectionRange: createRangeFromNode(actionInfo.payloadNode)
       }
     ]
     return locationLinks
   }
 
+  private provideDispatchCallSignature(nodes: ts.Node[], position: vscode.Position): vscode.SignatureHelp | undefined {
+    const dispatchCallIndex = nodes.findIndex(this.isDispatchCall)
+    if (dispatchCallIndex === -1) { return undefined }
+
+    const dispatchCall = nodes[dispatchCallIndex] as ts.CallExpression
+    const currentNode = nodes[nodes.length - 1]
+
+    // signature should be provided only for the first arg for dispatch function call
+    const shouldProvide = 
+      currentNode === dispatchCall
+      || dispatchCall.arguments.length === 0
+      || isWithin(
+        dispatchCall.arguments[0], 
+        currentNode.getSourceFile().getPositionOfLineAndCharacter(position.line, Math.max(0, position.character - 1))
+      )
+    if (!shouldProvide) { return undefined }
+
+    const actionInfo = this.extractActionInfo(nodes)
+
+    const actionTypeStr = actionInfo ? actionInfo.type : 'string'
+    const payloadTypeStr = actionInfo ? this.compilerHostService.getProgram().getTypeChecker().typeToString(actionInfo.payload) : 'object'
+
+    let parameter: vscode.ParameterInformation | undefined = undefined
+    if (actionInfo) {
+      const parameterMarkdown = new vscode.MarkdownString()
+      parameterMarkdown.appendCodeblock(`payload: ${payloadTypeStr}`, 'typescript')
+      parameter = {
+        label: '',
+        documentation: parameterMarkdown
+      }
+    }
+    const signatureMarkdown = new vscode.MarkdownString()
+    signatureMarkdown.appendCodeblock(`dispatch({ type: ${actionTypeStr}, payload: ${payloadTypeStr} }): any`, 'typescript')
+    const signature: vscode.SignatureInformation = {
+      label: '',
+      documentation: signatureMarkdown,
+      parameters: parameter ? [ parameter ] : []
+    }
+    const signatureHelp: vscode.SignatureHelp = {
+      signatures: [signature],
+      activeSignature: 0,
+      activeParameter: 0
+    }
+    return signatureHelp
+  }
+
+  /**
+   * find all nodes that current position is within
+   */
+  private generateNodePath(document: vscode.TextDocument, position: vscode.Position): ts.Node[] {
+    const file = createSourceFile(document.getText())
+    // find last character position as ts format
+    const tsPosition = file.getPositionOfLineAndCharacter(position.line, Math.max(0, position.character))
+    let path = generateNodePath(file, tsPosition)
+    return path
+  }
+
+  private isDispatchCall(node: ts.Node): boolean {
+    return ts.isCallExpression(node) && node.getChildAt(0).getLastToken()!.getText() === 'dispatch'
+  }
+
+  /**
+   * extract payload node for use and query action infos from models and 
+   */
+  private extractActionInfo(nodes: ts.Node[]): ActionInfoWithNode | undefined {
+    const objectLiteralExpressions = this.extractDispatchCallNodes(nodes)
+    if (!objectLiteralExpressions || objectLiteralExpressions.length === 0) { return undefined }
+
+    const payload = objectLiteralExpressions[0]
+    const actionTypeNode = payload.properties.find(v => v.name!.getText() === 'type') as ts.PropertyAssignment
+    const actionTypeStr = actionTypeNode.initializer.getText()
+    const actionInfo = this.modelService.getActions().find(v => v.type === actionTypeStr)
+
+    if (!actionInfo) { return undefined }
+    return {
+      ...actionInfo,
+      payloadNode: payload
+    }
+  }
+
+  /**
+   * @returns if it's not a dispatch call, return undefined, otherwise return nodes of function parameters
+   */
+  private extractDispatchCallNodes(nodes: ts.Node[]): ts.ObjectLiteralExpression[] | undefined {
+    const dispatchCallIndex = nodes.findIndex(this.isDispatchCall)
+    if (dispatchCallIndex === -1) { return undefined }
+
+    const objectLiteralExpressions = nodes
+      .slice(dispatchCallIndex)
+      .filter(ts.isObjectLiteralExpression)
+    return objectLiteralExpressions
+  }
 }
 
 export default LanguageService

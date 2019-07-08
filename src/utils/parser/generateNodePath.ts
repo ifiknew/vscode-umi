@@ -1,6 +1,6 @@
 import * as ts from 'typescript'
 
-function isWithin(node: ts.Node, position: number) {
+export function isWithin(node: ts.Node, position: number) {
   try {
     return node.pos <= position && position <= node.end
   } catch (e) {

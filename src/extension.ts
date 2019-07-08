@@ -7,6 +7,7 @@ import Registry from './utils/Registry';
 import DiagnosticPlugin from './plugins/DiagnosticPlugin';
 import CompletionItemProvider from './providers/CompletionItemProvider';
 import DefinitionProvider from './providers/DefinitionProvider';
+import SignatureHelpProvider from './providers/SignatureHelpProvider';
 
 const typeScriptExtensionId = 'vscode.typescript-language-features';
 
@@ -31,6 +32,14 @@ export async function activate(context: vscode.ExtensionContext) {
 			selectors,
 			Registry.lookup(DefinitionProvider)
 		),
+		vscode.languages.registerSignatureHelpProvider(
+			selectors,
+			Registry.lookup(SignatureHelpProvider),
+			{
+				triggerCharacters: ['(', ')', ',', 't', 'p'],
+				retriggerCharacters: []
+			}
+		) ,
 		Registry.lookup(DiagnosticPlugin)
 	);
 	

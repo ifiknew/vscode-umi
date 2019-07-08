@@ -32,6 +32,7 @@ export default class DiagnosticPlugin {
         this.provideDiagnostics(doc)
       }),
       vscode.workspace.onDidChangeTextDocument(e => {
+        console.log('change text docs')
         this.provideDiagnostics(e.document)
       }),
     )

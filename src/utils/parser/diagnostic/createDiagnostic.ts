@@ -1,6 +1,7 @@
 import * as ts from 'typescript'
 import * as vscode from 'vscode'
 import createRangeFromNode from '../createRangeFromNode';
+import Config from '../../Config';
 
 function createDiagnostic(node: ts.Node, message: string, severity?: vscode.DiagnosticSeverity) {
 
@@ -8,7 +9,7 @@ function createDiagnostic(node: ts.Node, message: string, severity?: vscode.Diag
 
   return new vscode.Diagnostic(
     range,
-    `[vscode-umi] ${message}`,
+    `${Config.LogLabel} ${message}`,
     severity
   )
 }
