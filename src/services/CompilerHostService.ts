@@ -47,6 +47,7 @@ class CompilerHostService {
     const host = ts.createWatchCompilerHost(
       [],
       {
+        allowJs: true,
         noEmit: true // we do not want to emit output
       },
       ts.sys,
