@@ -148,7 +148,7 @@ const visitorDescriptions: Array<{ flags: number, visitor: Visitor }> = [
   { flags: ts.TypeFlags.Object, visitor: objectVisitor },
   { flags: ts.TypeFlags.String, visitor: createLiteralVisitor(ts.TypeFlags.String) },
   { flags: ts.TypeFlags.Number, visitor: createLiteralVisitor(ts.TypeFlags.Number) },
-  { flags: ts.TypeFlags.BooleanLiteral, visitor: createLiteralVisitor(ts.TypeFlags.Boolean) },
+  { flags: ts.TypeFlags.BooleanLiteral, visitor: createLiteralVisitor(ts.TypeFlags.BooleanLiteral) },
   { flags: ts.TypeFlags.EnumLiteral, visitor: enumVisitor },
 ]
 
