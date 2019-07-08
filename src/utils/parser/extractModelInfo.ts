@@ -2,10 +2,23 @@ import * as ts from 'typescript'
 interface ExtractContext {
   checker: ts.TypeChecker
 }
-interface ExtractActionInfo {
+export interface ExtractActionInfo {
+  /**
+   * name of action key, as same as the 'type' property in an action 
+   */
   name: string
-  type?: ts.Node
-  required: boolean
+  /**
+   * type of payload object
+   */
+  type: ts.Type
+  /**
+   * whether payload is required
+   */
+  required: boolean,
+  /**
+   * indicate where current action came from
+   */
+  declaration: ts.Declaration
 }
 /**
  * extract dva model info from the model's Type
@@ -35,26 +48,28 @@ function extractNamespace(symbol: ts.Symbol) {
   return namespaceValueToken.getText().slice(1,-1) // remove queto
 }
 
-function extractReducers(symbol: ts.Symbol, option: ExtractContext) {
-  return extractFunctionNameAndParameterTypesFromObjectSymbol(symbol, option)
+function extractReducers(symbol: ts.Symbol, option: ExtractContext): Array<ExtractActionInfo> {
+  return extractFunctionInfoFromObjectSymbol(symbol, option)
     .map(v => {
       // we extract the type of the second function parameter as reducer payload type
       return {
         name: v.name,
         required: v.paramRequireds[1],
-        type: v.types[1]
+        type: v.types[1],
+        declaration: v.functionDeclaration
       } 
     })
 }
 
-function extractEffects(symbol: ts.Symbol, option: ExtractContext) {
-  return extractFunctionNameAndParameterTypesFromObjectSymbol(symbol, option)
+function extractEffects(symbol: ts.Symbol, option: ExtractContext): Array<ExtractActionInfo> {
+  return extractFunctionInfoFromObjectSymbol(symbol, option)
     .map(v => {
       // we extract the type of the first function parameter as effect payload type
       return {
         name: v.name,
         required: v.paramRequireds[0],
-        type: v.types[0]
+        type: v.types[0],
+        declaration: v.functionDeclaration
       } 
     })
 }
@@ -63,7 +78,7 @@ function extractEffects(symbol: ts.Symbol, option: ExtractContext) {
  * to extract functionNames and their parameters from an object
  * @param symbol the symbol represents an object which satisfies the type { [key: string]: Function }
  */
-function extractFunctionNameAndParameterTypesFromObjectSymbol(symbol: ts.Symbol, { checker }: ExtractContext) {
+function extractFunctionInfoFromObjectSymbol(symbol: ts.Symbol, { checker }: ExtractContext) {
   const type = checker.getTypeOfSymbolAtLocation(symbol, symbol.valueDeclaration)
   const properties = checker.getPropertiesOfType(type)
 
@@ -74,12 +89,11 @@ function extractFunctionNameAndParameterTypesFromObjectSymbol(symbol: ts.Symbol,
       name: v.name,
       paramRequireds: callSignature.parameters
         .map(v => v.declarations[0])
-        .map(v => ts.isParameter(v) ? (v.initializer || v.questionToken) : true ),
-      paramUseds: callSignature.parameters
-        .map(v => v.declarations[0])
-        .map(Boolean),
+        .map(v => ts.isParameter(v) ? Boolean(v.initializer || v.questionToken) : true ),
       types: callSignature.parameters
-        .map(v => checker.getTypeOfSymbolAtLocation(v, v.valueDeclaration))
+        .map(v => checker.getTypeOfSymbolAtLocation(v, v.valueDeclaration)),
+      paramSymbols: callSignature.parameters,
+      functionDeclaration: v.valueDeclaration
     }
   })
 

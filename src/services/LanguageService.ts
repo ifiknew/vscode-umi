@@ -5,6 +5,7 @@ import ModelService from "./ModelService"
 import generateNodePath from "../utils/parser/generateNodePath";
 import createSourceFile from "../utils/parser/createSourceFile";
 import CompilerHostService from "./CompilerHostService";
+import createRangeFromNode from "../utils/parser/createRangeFromNode";
 
 @Registry.naming
 class LanguageService {
@@ -21,27 +22,40 @@ class LanguageService {
     token: vscode.CancellationToken, 
     context: vscode.CompletionContext
   ): vscode.ProviderResult<vscode.CompletionItem[] | vscode.CompletionList> {
+    const path = this.generateNodePath(document, position)
+    return this.provideDispatchCallCompletion(path)
+  }
+
+  provideDefinition(
+    document: vscode.TextDocument, 
+    position: vscode.Position, 
+    token: vscode.CancellationToken
+  ): vscode.LocationLink[] {
+    const path = this.generateNodePath(document, position)
+    return this.provideDispatchCallDefinition(path)
+  }
+  
+  /**
+   * find all nodes that current position is within
+   */
+  private generateNodePath(document: vscode.TextDocument, position: vscode.Position): ts.Node[] {
     const file = createSourceFile(document.getText())
     // find last character position as ts format
     const tsPosition = file.getPositionOfLineAndCharacter(position.line, Math.max(0, position.character - 1))
     let path = generateNodePath(file, tsPosition)
-    
-    const items: vscode.CompletionItem[] = []
-    items.push(...this.provideDispatchCall(path))
-
-		return items
+    return path
   }
-  
+
+  private isDispatchCall(node: ts.Node): boolean {
+    return ts.isCallExpression(node) && node.getChildAt(0).getLastToken()!.getText() === 'dispatch'
+  }
+
   /**
    * to complete type and payload within a dispatch call
    * @param nodes node path from the whole file to current node
    */
-  private provideDispatchCall(nodes: ts.Node[]) {
-    const dispatchCallIndex = nodes
-      .findIndex(v => 
-        ts.isCallExpression(v)
-        && v.getChildAt(0).getLastToken()!.getText() === 'dispatch'
-      )
+  private provideDispatchCallCompletion(nodes: ts.Node[]): vscode.CompletionItem[] {
+    const dispatchCallIndex = nodes.findIndex(this.isDispatchCall)
     if (dispatchCallIndex === -1) { return [] }
 
     // to judge whether to provide type or payload completion
@@ -121,6 +135,35 @@ class LanguageService {
     }
     return []
   }
+
+  /**
+   * 
+   * @param nodes 
+   */
+  private provideDispatchCallDefinition(nodes: ts.Node[]): vscode.LocationLink[] {
+    const dispatchCallIndex = nodes.findIndex(this.isDispatchCall)
+    if (dispatchCallIndex === -1) { return [] }
+
+    const objectLiteralExpressions = nodes
+      .slice(dispatchCallIndex)
+      .filter(ts.isObjectLiteralExpression)
+    if (objectLiteralExpressions.length === 0) { return [] }
+
+    const payload = objectLiteralExpressions[0]
+    const actionTypeNode = payload.properties.find(v => v.name!.getText() === 'type') as ts.PropertyAssignment
+    const actionTypeStr = actionTypeNode.initializer.getText()
+    const actionInfo = this.modelService.getActions().find(v => v.type === actionTypeStr)!
+
+    const locationLinks: vscode.LocationLink[] = [
+      {
+        targetUri: vscode.Uri.file(actionInfo.sourceFile.fileName),
+        targetRange: createRangeFromNode(actionInfo.definition),
+        originSelectionRange: createRangeFromNode(payload)
+      }
+    ]
+    return locationLinks
+  }
+
 }
 
 export default LanguageService

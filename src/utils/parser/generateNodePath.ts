@@ -9,7 +9,7 @@ function isWithin(node: ts.Node, position: number) {
 }
 
 /**
- * find all parents for a position
+ * find all ancestral nodes that current position passed by
  */
 function generateNodePath(node: ts.Node, position: number) {
   const path: ts.Node[] = []

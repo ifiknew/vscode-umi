@@ -1,18 +1,21 @@
 import Registry from "../utils/Registry"
 import * as ts from 'typescript'
-import extractModelInfo from '../utils/parser/extractModelInfo';
+import extractModelInfo, { ExtractActionInfo } from '../utils/parser/extractModelInfo';
 import extractModelPathsFromWorkspace from '../utils/parser/extractModelPathsFromWorkspace';
 import CompilerHostService from "./CompilerHostService";
 
 export interface ModelInfo {
   namespace: string
-  reducers: Array<{ name: string, type: ts.Type, required: boolean }>,
-  effects: Array<{ name: string, type: ts.Type, required: boolean }>,
+  reducers: Array<ExtractActionInfo>,
+  effects: Array<ExtractActionInfo>,
+  sourceFile: ts.SourceFile
 }
 export interface ActionInfo {
   type: string
   payload: ts.Type
   payloadRequired: boolean
+  definition: ts.Node
+  sourceFile: ts.SourceFile
 }
 
 @Registry.naming
@@ -59,14 +62,19 @@ class ModelService {
 
         const defaultExportType = checker.getTypeOfSymbolAtLocation(defaultExport, defaultExport.valueDeclaration)
         const modelInfo = extractModelInfo(defaultExportType, { checker })
-        return modelInfo
+        return {
+          ...modelInfo,
+          sourceFile: fileNode
+        }
       })
       .filter(Boolean) as ModelInfo[]
     const actionInfos = modelInfos
       .map(v => [...v.reducers ,...v.effects].map(u => ({
         type: JSON.stringify(`${v.namespace}/${u.name}`), // add quote for action type string
         payload: u.type,
-        payloadRequired: u.required
+        payloadRequired: u.required,
+        definition: u.declaration,
+        sourceFile: v.sourceFile
       })))
       .reduce((arr, cur) => [...arr, ...cur], [])
     this.modelInfos = modelInfos

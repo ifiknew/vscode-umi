@@ -1,11 +1,12 @@
 import 'core-js/features/array/flat';
+import 'reflect-metadata'
 
 import * as vscode from 'vscode';
-import 'reflect-metadata'
-import CompletionItemProvider from './providers/CompletionItemProvider';
-import Registry from './utils/Registry';
 
+import Registry from './utils/Registry';
 import DiagnosticPlugin from './plugins/DiagnosticPlugin';
+import CompletionItemProvider from './providers/CompletionItemProvider';
+import DefinitionProvider from './providers/DefinitionProvider';
 
 const typeScriptExtensionId = 'vscode.typescript-language-features';
 
@@ -25,6 +26,10 @@ export async function activate(context: vscode.ExtensionContext) {
 		vscode.languages.registerCompletionItemProvider(
 			selectors, 
 			Registry.lookup(CompletionItemProvider)
+		),
+		vscode.languages.registerDefinitionProvider(
+			selectors,
+			Registry.lookup(DefinitionProvider)
 		),
 		Registry.lookup(DiagnosticPlugin)
 	);

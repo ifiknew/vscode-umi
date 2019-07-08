@@ -5,4 +5,4 @@ To support some language features for umi.
 - [x] autocomplete action for dispatch  
 - [x] diagnostics  
 - [ ] dispatch code snapshot  
-- [ ] go to defination  
+- [x] go to definition  
