@@ -1,7 +1,7 @@
 {
-	"name": "test",
-	"displayName": "Test",
-	"description": "test",
+	"name": "vscode-umi",
+	"displayName": "vscode-umi",
+	"description": "provide language features like completion, definition and signature help for umi",
 	"version": "0.0.1",
 	"engines": {
 		"vscode": "^1.35.0"

@@ -39,7 +39,7 @@ export async function activate(context: vscode.ExtensionContext) {
 				triggerCharacters: ['(', ')', ',', 't', 'p'],
 				retriggerCharacters: []
 			}
-		) ,
+		),
 		Registry.lookup(DiagnosticPlugin)
 	);
 	
