@@ -20,14 +20,21 @@ export default class DiagnosticPlugin {
   private modelService!: ModelService
 
   private diagnosticCollection: vscode.DiagnosticCollection = vscode.languages.createDiagnosticCollection('umi')
+
+  private disposables: vscode.Disposable[] = []
   
-  constructor() { 
-    vscode.workspace.onDidOpenTextDocument(doc => {
-      this.provideDiagnostics(doc)
-    })
-    vscode.workspace.onDidChangeTextDocument(e => {
-      this.provideDiagnostics(e.document)
-    })
+  constructor() {
+    /**
+     * @todo listen to compilerhost file change and judge whether to provide diagnostics
+     */
+    this.disposables.push(
+      vscode.workspace.onDidOpenTextDocument(doc => {
+        this.provideDiagnostics(doc)
+      }),
+      vscode.workspace.onDidChangeTextDocument(e => {
+        this.provideDiagnostics(e.document)
+      }),
+    )
   }
 
   private provideDiagnostics(document: vscode.TextDocument) {
@@ -52,5 +59,9 @@ export default class DiagnosticPlugin {
       }
     })
     this.diagnosticCollection.set(document.uri, diagnostics)
+  }
+
+  public dispose() {
+    this.disposables.forEach(v => v.dispose())
   }
 }

@@ -5,7 +5,7 @@ import 'reflect-metadata'
 import CompletionItemProvider from './providers/CompletionItemProvider';
 import Registry from './utils/Registry';
 
-import './plugins/DiagnosticPlugin';
+import DiagnosticPlugin from './plugins/DiagnosticPlugin';
 
 const typeScriptExtensionId = 'vscode.typescript-language-features';
 
@@ -26,6 +26,7 @@ export async function activate(context: vscode.ExtensionContext) {
 			selectors, 
 			Registry.lookup(CompletionItemProvider)
 		),
+		Registry.lookup(DiagnosticPlugin)
 	);
 	
 
