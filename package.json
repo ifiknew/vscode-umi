@@ -17,14 +17,6 @@
 		"onLanguage:typescriptreact"
 	],
 	"main": "./out/extension.js",
-	"contributes": {
-		"commands": [
-			{
-				"command": "extension.helloWorld",
-				"title": "Pika Pika"
-			}
-		]
-	},
 	"scripts": {
 		"vscode:prepublish": "npm run compile",
 		"compile": "tsc -p ./",
@@ -35,15 +27,13 @@
 	"devDependencies": {
 		"@types/mocha": "^2.2.42",
 		"@types/node": "^10.14.9",
-		"reflect-metadata": "^0.1.13",
 		"tslint": "^5.12.1",
-		"typescript": "^3.3.1",
 		"vscode": "^1.1.28"
 	},
 	"dependencies": {
 		"@types/react": "^16.8.19",
 		"core-js": "^3.1.4",
-		"react": "^16.8.6",
-		"react-docgen-typescript": "^1.12.4"
+		"typescript": "^3.3.1",
+		"reflect-metadata": "^0.1.13"
 	}
 }

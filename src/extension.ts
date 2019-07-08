@@ -9,15 +9,7 @@ import CompletionItemProvider from './providers/CompletionItemProvider';
 import DefinitionProvider from './providers/DefinitionProvider';
 import SignatureHelpProvider from './providers/SignatureHelpProvider';
 
-const typeScriptExtensionId = 'vscode.typescript-language-features';
-
 export async function activate(context: vscode.ExtensionContext) {
-	const extension = vscode.extensions.getExtension(typeScriptExtensionId);
-	if (!extension) {
-		vscode.window.showErrorMessage('You have no ' + typeScriptExtensionId + ' extension')
-		return
-	}
-	await extension.activate();
 
 	const selectors = [
 		{ scheme: 'file', language: 'typescript' }, 
