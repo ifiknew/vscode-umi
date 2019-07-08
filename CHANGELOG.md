@@ -6,4 +6,9 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
-- Initial release
+## [0.1.0] - 2019-07-08
+### Added
+- autocomplete action for dispatch
+- diagnostics for action
+- go to definition for action
+- dispatch call signature help
