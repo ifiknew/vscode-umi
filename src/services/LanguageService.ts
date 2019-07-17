@@ -88,9 +88,15 @@ class LanguageService {
 
       // find action type
       const payload = objectLiteralExpressions[0]
-      const actionTypeNode = payload.properties.find(v => v.name!.getText() === 'type') as ts.PropertyAssignment
-      const actionTypeStr = actionTypeNode.initializer.getText()
-      const actionType = this.modelService.getActions().find(v => v.type === actionTypeStr)!.action
+      let actionType: ts.Type | undefined = undefined
+      try {
+        const actionTypeNode = payload.properties.find(v => v.name!.getText() === 'type') as ts.PropertyAssignment
+        const actionTypeStr = actionTypeNode.initializer.getText()
+        actionType = this.modelService.getActions().find(v => v.type === actionTypeStr)!.action
+      } catch (error) {
+        
+      }
+      if (actionType == null) { return completionItems }
 
       const current = objectLiteralExpressions[objectLiteralExpressions.length - 1]
       
@@ -162,9 +168,8 @@ class LanguageService {
     const actionInfo = this.extractActionInfo(nodes)
 
     const actionTypeStr = actionInfo ? actionInfo.type : 'string'
-    const originalActionObjectTypeStr = actionInfo ? this.compilerHostService.getProgram().getTypeChecker().typeToString(actionInfo.action) : 'object'
-
-    const actionObjectTypeStr = `{ type: ${actionTypeStr}; ${originalActionObjectTypeStr.slice(1, -1)} }`
+    const originalActionObjectTypeStr = actionInfo ? this.compilerHostService.getProgram().getTypeChecker().typeToString(actionInfo.action) : '{}'
+    const actionObjectTypeStr = `{ type: ${actionTypeStr}; ${originalActionObjectTypeStr.slice(1, -1)} }`.replace(/ +/g, ' ')
     let parameter: vscode.ParameterInformation | undefined = undefined
     if (actionInfo) {
       const parameterMarkdown = new vscode.MarkdownString()
