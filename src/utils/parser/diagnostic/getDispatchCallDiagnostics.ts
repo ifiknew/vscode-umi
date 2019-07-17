@@ -66,27 +66,8 @@ function getDispatchCallDiagnostics(node: ts.CallExpression, actionInfos: Array<
               'cannot find a model action type name matches current one, perhaps spelling mistakes?'
             ))
           } else {
-            /**
-             * rules for action payload:  
-             * - whether required
-             * - if required, whether type match
-             */
-            const payloadPropertyNode = actionNode.properties.find(v => v.name!.getText() === 'payload')
-            const payloadtype = actionInfo.payload
-            if (!payloadPropertyNode && actionInfo.payloadRequired) {
-              diagnostics.push(createDiagnostic(
-                actionNode,
-                `property payload is required in { type: ${actionInfo.type}, payload: ${checker.typeToString(payloadtype)} }`
-              ))
-            } else if (payloadPropertyNode && !actionInfo.type) {
-              diagnostics.push(createDiagnostic(
-                actionNode,
-                `property payload is unnecessary in { type: ${actionInfo.type} }`
-              ))
-            } else if (payloadPropertyNode && ts.isPropertyAssignment(payloadPropertyNode)) {
-              diagnostics.push(...getNodeDiagnostics(payloadPropertyNode.initializer, payloadtype, { checker }))
-            }
-            
+            const actionObjectDefinitionType = actionInfo.action
+            diagnostics.push(...getNodeDiagnostics(actionNode, actionObjectDefinitionType, { checker, isActionObject: true }))
           }
         }
       }

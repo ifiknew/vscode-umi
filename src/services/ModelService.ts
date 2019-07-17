@@ -13,8 +13,7 @@ export interface ModelInfo {
 }
 export interface ActionInfo {
   type: string
-  payload: ts.Type
-  payloadRequired: boolean
+  action: ts.Type
   definition: ts.Node
   sourceFile: ts.SourceFile
 }
@@ -72,8 +71,7 @@ class ModelService {
     const actionInfos = modelInfos
       .map(v => [...v.reducers ,...v.effects].map(u => ({
         type: JSON.stringify(`${v.namespace}/${u.name}`), // add quote for action type string
-        payload: u.type,
-        payloadRequired: u.required,
+        action: u.type,
         definition: u.declaration,
         sourceFile: v.sourceFile
       })))

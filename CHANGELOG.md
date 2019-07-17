@@ -6,6 +6,11 @@ Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how 
 
 ## [Unreleased]
 
+## [0.1.1] - 2019-07-17
+### Changed
+- remove unnecessary files like guides & pkg-lock files
+- fix dispatch call action language features (parsing models, provide completions & signatures & diagnostics in a wrong way)
+
 ## [0.1.0] - 2019-07-08
 ### Added
 - autocomplete action for dispatch

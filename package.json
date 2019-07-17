@@ -15,10 +15,7 @@
 		"Other"
 	],
 	"activationEvents": [
-		"onLanguage:javascript",
-		"onLanguage:javascriptreact",
-		"onLanguage:typescript",
-		"onLanguage:typescriptreact"
+		"workspaceContains:.umirc*"
 	],
 	"main": "./out/extension.js",
 	"scripts": {

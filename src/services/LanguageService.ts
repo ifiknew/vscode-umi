@@ -66,43 +66,36 @@ class LanguageService {
       return []
     }
 
-    // completion for type and payload
+    const completionItems: vscode.CompletionItem[] = []
+    // completion for type
     if (objectLiteralExpressions.length === 1) {
-      return [
-        ...['type', 'payload'].map(key => {
-          const item = new vscode.CompletionItem(key, vscode.CompletionItemKind.Field)
-          item.preselect = true
-          item.kind = vscode.CompletionItemKind.Property
-          item.detail = `(property) ${key}: ${key === 'type' ? 'string' : 'object'}`
+      const item = new vscode.CompletionItem('type', vscode.CompletionItemKind.Field)
+      item.preselect = true
+      item.kind = vscode.CompletionItemKind.Property
+      item.detail = `(property) type: 'string'`
 
-          item.filterText = `${key}: `
-          item.insertText = `${key}: `
-          
-          if (key === 'type') {
-            const actions = this.modelService.getActions()
-            if (actions.length) {
-              item.insertText = new vscode.SnippetString('type: ${1|'+ actions.map(v => v.type).join(',') +'|}') 
-            }
-          }
-          
-          return item
-        })
-      ]
+      item.filterText = item.insertText = `type: `
+      
+      const actions = this.modelService.getActions()
+      if (actions.length) {
+        item.insertText = new vscode.SnippetString('type: ${1|'+ actions.map(v => v.type).join(',') +'|}') 
+      }
+      completionItems.push(item)
     }
 
-    // completion for payload object
-    if (objectLiteralExpressions.length > 1) {
+    // completion for action object
+    if (objectLiteralExpressions.length >= 1) {
 
-      // find payload type
+      // find action type
       const payload = objectLiteralExpressions[0]
       const actionTypeNode = payload.properties.find(v => v.name!.getText() === 'type') as ts.PropertyAssignment
       const actionTypeStr = actionTypeNode.initializer.getText()
-      const payloadType = this.modelService.getActions().find(v => v.type === actionTypeStr)!.payload
+      const actionType = this.modelService.getActions().find(v => v.type === actionTypeStr)!.action
 
       const current = objectLiteralExpressions[objectLiteralExpressions.length - 1]
       
       // we start from inside payload object and outside the one currently user is typing
-      const actionKeyPath = objectLiteralExpressions.slice(1, -1).reduce<string[]>(
+      const actionKeyPath = objectLiteralExpressions.slice(0, -1).reduce<string[]>(
         (path, cur) => {
           const identifier = cur.properties.find(v => v.pos <= current.pos && current.end <= v.end)
           return [...path, identifier!.name!.getText()]
@@ -116,21 +109,21 @@ class LanguageService {
           const curSymbol = checker.getPropertyOfType(type, cur)!
           return checker.getTypeOfSymbolAtLocation(curSymbol, curSymbol.valueDeclaration)
         },
-        payloadType
+        actionType
       )
       const currentAvaliableProperties = checker.getPropertiesOfType(currentType)
       
-      return currentAvaliableProperties.map(v => {
+      currentAvaliableProperties.forEach(v => {
         const item = new vscode.CompletionItem(v.getName(), vscode.CompletionItemKind.Field)
         item.preselect = true
         item.insertText = item.filterText = `${v.getName()}: `
         const propertyType = checker.getTypeOfSymbolAtLocation(v, v.valueDeclaration)
         const propertyTypeName = checker.typeToString(propertyType)
         item.detail = `(property) ${v.getName()}: ${propertyTypeName}`
-        return item
+        completionItems.push(item)
       })
     }
-    return []
+    return completionItems
   }
 
   /**
@@ -169,19 +162,20 @@ class LanguageService {
     const actionInfo = this.extractActionInfo(nodes)
 
     const actionTypeStr = actionInfo ? actionInfo.type : 'string'
-    const payloadTypeStr = actionInfo ? this.compilerHostService.getProgram().getTypeChecker().typeToString(actionInfo.payload) : 'object'
+    const originalActionObjectTypeStr = actionInfo ? this.compilerHostService.getProgram().getTypeChecker().typeToString(actionInfo.action) : 'object'
 
+    const actionObjectTypeStr = `{ type: ${actionTypeStr}; ${originalActionObjectTypeStr.slice(1, -1)} }`
     let parameter: vscode.ParameterInformation | undefined = undefined
     if (actionInfo) {
       const parameterMarkdown = new vscode.MarkdownString()
-      parameterMarkdown.appendCodeblock(`payload: ${payloadTypeStr}`, 'typescript')
+      parameterMarkdown.appendCodeblock(actionObjectTypeStr, 'typescript')
       parameter = {
         label: '',
         documentation: parameterMarkdown
       }
     }
     const signatureMarkdown = new vscode.MarkdownString()
-    signatureMarkdown.appendCodeblock(`dispatch({ type: ${actionTypeStr}, payload: ${payloadTypeStr} }): any`, 'typescript')
+    signatureMarkdown.appendCodeblock(`dispatch(${actionObjectTypeStr}): any`, 'typescript')
     const signature: vscode.SignatureInformation = {
       label: '',
       documentation: signatureMarkdown,

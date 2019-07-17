@@ -9,15 +9,15 @@ import createDiagnostic from './createDiagnostic';
  * to solve all types is of great complexity, see typescript/src/compiler/checker - checkSourceElementWorker to know what should be done  
  * here to support not all of them
  */
-function getNodeDiagnostics(node: ts.Node, type: ts.Type, { checker }: { checker: ts.TypeChecker }) {
+function getNodeDiagnostics(node: ts.Node, type: ts.Type, context: VisitorContext) {
   
   // if type provided is any, it means that no check should be done
   if (type.flags === ts.TypeFlags.Any) {
     return []
   }
-  const nodeType = checker.getTypeAtLocation(node)
+  const nodeType = context.checker.getTypeAtLocation(node)
   
-  return autoVisitor(nodeType, type, { checker })
+  return autoVisitor(nodeType, type, context)
 }
 
 interface VisitorContext {
@@ -27,7 +27,8 @@ interface VisitorContext {
     matchType: ts.Type,
     property?: ts.Symbol
   },
-  originalMatchType?: ts.Type
+  originalMatchType?: ts.Type,
+  isActionObject?: boolean,
 }
 /**
  * Visitors are functions to generate diagnostics for specific nodes
@@ -76,7 +77,7 @@ const autoVisitor: Visitor = (nodeType, matchType, context) => {
   return visitorDesc ? visitorDesc.visitor(nodeType, matchType, context) : []
 }
 
-const objectVisitor: Visitor = (nodeType, matchType, { checker }) => {
+const objectVisitor: Visitor = (nodeType, matchType, { checker, isActionObject }) => {
   const diagnostics: vscode.Diagnostic[] = []
   // check if object
   if (!(matchType.flags & ts.TypeFlags.Object)) {
@@ -88,6 +89,7 @@ const objectVisitor: Visitor = (nodeType, matchType, { checker }) => {
   // if true, visit recursively
   diagnostics.push(...nodeProperties
     .map(v => {
+      if (isActionObject && v.name === 'type') { return [] }
       const matchPropertyTypeSymbol = matchProperties.find(u => v.name === u.name)
       const matchPropertyType = matchPropertyTypeSymbol ? checker.getTypeOfSymbolAtLocation(matchPropertyTypeSymbol, matchPropertyTypeSymbol.valueDeclaration) : undefined
       if (!matchPropertyType) {
