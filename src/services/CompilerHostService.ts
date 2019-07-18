@@ -177,9 +177,19 @@ class CompilerHostService {
   }
 
   public getProgram() {
-    const builderProgram = this.watchProgram.getProgram()
-    const program = builderProgram.getProgram()
-    return program
+    // parse process still not stable, need try catch and retry
+    // need to be fixed
+    try {
+      const builderProgram = this.watchProgram.getProgram()
+      const program = builderProgram.getProgram()
+      return program
+    } catch (error) {
+      console.log(error)
+      const builderProgram = this.watchProgram.getProgram()
+      const program = builderProgram.getProgram()
+      return program
+    }
+
   }
 
   /**

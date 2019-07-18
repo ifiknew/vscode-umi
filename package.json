@@ -15,7 +15,8 @@
 		"Other"
 	],
 	"activationEvents": [
-		"workspaceContains:.umirc*"
+		"workspaceContains:.umirc*",
+		"workspaceContains:./config/config*"
 	],
 	"main": "./out/extension.js",
 	"scripts": {

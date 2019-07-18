@@ -2,6 +2,11 @@
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [0.1.4] - 2019-07-18
+### Changed
+- try catch exception when getProgram for stability
+- fix dispatch call judgement for diagnostics
+
 ## [0.1.3] - 2019-07-17
 ### Changed
 - fix cannot complete type

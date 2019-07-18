@@ -57,7 +57,7 @@ export default class DiagnosticPlugin {
     traverse(file, node => {
       if (
         ts.isCallExpression(node)
-        && node.getChildAt(0).getLastToken()!.getText() === 'dispatch'
+        && [/\.dispatch$/, /^dispatch$/].some(regexp => regexp.test(node.getChildAt(0).getText()))
       ) {
         diagnostics.push(...getDispatchCallDiagnostics(
           node, 
